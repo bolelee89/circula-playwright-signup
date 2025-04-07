@@ -1,58 +1,62 @@
+// tests/signup.spec.ts
 import { test, expect } from "@playwright/test";
 import {
   generateUniqueEmail,
   generateUniqueCompanyName,
 } from "../utils/emailAndCompanyGenerator";
+import { signupLocators, getCountryOption } from "./locators/signupLocators";
 
 test.describe("Signup", () => {
-  let email;
-  let organizationName;
+  let email: string;
+  let organizationName: string;
 
   test.beforeEach(async ({ page }) => {
-    await page.goto("/users/sign_up");
+    await page.goto(signupLocators.signupPage);
 
     // Accept cookies
-    await page.getByText("Accept All").click();
+    await page.locator(signupLocators.acceptCookiesButton).click();
 
     // Generate test data
     email = generateUniqueEmail();
     organizationName = generateUniqueCompanyName();
 
     // Fill first signup form
-    await page.locator('input[type="email"]').fill(email);
-    await page.locator('input[type="password"]').fill("Test1234!");
-    await page.locator('input[name="acceptTos"]').check({ force: true });
-    await page.locator('input[name="sendNewsletter"]').check({ force: true });
-    await page.locator('button[type="submit"]').click();
+    await page.locator(signupLocators.emailInput).fill(email);
+    await page.locator(signupLocators.passwordInput).fill("Test1234!");
+    await page.locator(signupLocators.acceptTosCheckbox).check({ force: true });
+    await page
+      .locator(signupLocators.newsletterCheckbox)
+      .check({ force: true });
+    await page.locator(signupLocators.firstSubmitButton).click();
 
     // Fill second signup form
-    await page.locator('input[name="firstname"]').fill("Test");
-    await page.locator('input[name="lastname"]').fill("Test");
-    await page.locator('input[name="phoneNumber"]').fill("12345678");
-    await page.locator('button[type="submit"]').click();
+    await page.locator(signupLocators.firstNameInput).fill("Test");
+    await page.locator(signupLocators.lastNameInput).fill("Test");
+    await page.locator(signupLocators.phoneNumberInput).fill("12345678");
+    await page.locator(signupLocators.secondSubmitButton).click();
 
     // Fill organization
-    await page.locator('input[name="organizationName"]').fill(organizationName);
+    await page
+      .locator(signupLocators.organizationNameInput)
+      .fill(organizationName);
   });
 
   test("Verify country dropdown content and alphabetical order", async ({
     page,
   }) => {
-    const countryDropdown = page.locator('[role="combobox"][name="country"]');
+    const countryDropdown = page.locator(signupLocators.countryDropdown);
     await countryDropdown.click();
 
-    const countryOptions = page.locator(
-      '[data-testid="autocomplete-menu-portal"] [role="option"]'
-    );
+    const countryOptions = page.locator(signupLocators.countryOptions);
 
     await expect(countryOptions).toHaveCount(16);
 
     const countryList = (await countryOptions.allTextContents()).map((c) =>
       c.trim()
     );
-    const required = ["Sweden", "Spain", "Switzerland"];
+    const requiredCountries = ["Sweden", "Spain", "Switzerland"];
 
-    for (const country of required) {
+    for (const country of requiredCountries) {
       expect(countryList).toContain(country);
     }
 
@@ -63,7 +67,7 @@ test.describe("Signup", () => {
     expect(swedenIndex).toBeGreaterThan(spainIndex);
     expect(swedenIndex).toBeLessThan(switzerlandIndex);
 
-    const swedenOption = countryOptions.locator('div:has-text("Sweden")');
+    const swedenOption = page.locator(getCountryOption("Sweden"));
     await swedenOption.scrollIntoViewIfNeeded();
     await swedenOption.hover();
     await swedenOption.click({ force: true });
@@ -77,19 +81,18 @@ test.describe("Signup", () => {
   test("Verify registration payload includes correct country code", async ({
     page,
   }) => {
-    const countryDropdown = page.locator('[role="combobox"][name="country"]');
+    const countryDropdown = page.locator(signupLocators.countryDropdown);
     await countryDropdown.click();
 
-    const countryOptions = page.locator(
-      '[data-testid="autocomplete-menu-portal"] [role="option"]'
-    );
-    const swedenOption = countryOptions.locator('div:has-text("Sweden")');
+    const swedenOption = page.locator(getCountryOption("Sweden"));
     await swedenOption.scrollIntoViewIfNeeded();
     await swedenOption.hover();
     await swedenOption.click({ force: true });
 
-    await page.getByRole("button", { name: "Choose channel" }).click();
-    await page.getByText("Search Engine (Google, Bing,").click({ force: true });
+    await page.locator(signupLocators.channelDropdown).click();
+    await page
+      .locator(signupLocators.searchEngineOption)
+      .click({ force: true });
 
     const [request] = await Promise.all([
       page.waitForRequest(
@@ -97,7 +100,7 @@ test.describe("Signup", () => {
           req.url().includes("/registration/register") &&
           req.method() === "POST"
       ),
-      page.click('button[type="submit"]'),
+      page.locator(signupLocators.finalSubmitButton).click(),
     ]);
 
     const postData = request.postDataJSON();
@@ -106,14 +109,15 @@ test.describe("Signup", () => {
       email,
       organizationName,
     });
-    console.log(postData);
+
+    console.log("Registration payload:", postData);
+
     const response = await request.response();
     if (!response) {
       throw new Error("No response received for the registration request.");
     }
 
     const responseBody = await response.json();
-
     expect(responseBody).toHaveProperty("registrationId");
     expect(responseBody.errorCode).toBe(0);
   });
