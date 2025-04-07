@@ -23,10 +23,10 @@ test.describe("Signup", () => {
     // Fill first signup form
     await page.locator(signupLocators.emailInput).fill(email);
     await page.locator(signupLocators.passwordInput).fill("Test1234!");
-    await page.locator(signupLocators.acceptTosCheckbox).check({ force: true });
+    await page.locator(signupLocators.acceptTosCheckbox).click({ force: true });
     await page
       .locator(signupLocators.newsletterCheckbox)
-      .check({ force: true });
+      .click({ force: true });
     await page.locator(signupLocators.firstSubmitButton).click();
 
     // Fill second signup form
