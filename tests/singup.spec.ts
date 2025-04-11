@@ -106,8 +106,8 @@ test.describe("Signup", () => {
     const postData = request.postDataJSON();
     expect(postData).toMatchObject({
       country: "SE",
-      email,
-      organizationName,
+      email: email,
+      organizationName: organizationName,
     });
 
     console.log("Registration payload:", postData);
